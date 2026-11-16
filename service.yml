@@ -1,0 +1,65 @@
+service:
+  name: aac-ntfy
+  friendly_name: Ntfy
+  image_repo: binwiederhier/ntfy
+  image_tag: latest
+  description: Push Notification Service
+  icon: ntfy.png
+  category: Kommunikation
+  stage: prod
+  hostname: '{{ service.name }}'
+ports:
+- name: web
+  port: 80
+  external_port: 25125
+  protocol: TCP
+config:
+  domain_name: example.com
+  generate_hostname: false
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+      service_port: 80
+  schema_version: 2
+volumes:
+  cache:
+    description: Persistent message cache for ntfy
+  config:
+    description: Configuration directory for ntfy
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    restart_policy: unless-stopped
+    host_base_path: /export/docker
+    init: true
+    command:
+    - serve
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '"healthy"\s*:\s*true'
+        || exit 1
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+    - cache:/var/cache/ntfy
+    - config:/etc/ntfy
+    environment:
+      TZ: '{{ vars.TZ }}'
+vars:
+  TZ: Europe/Berlin
+secrets: {}
